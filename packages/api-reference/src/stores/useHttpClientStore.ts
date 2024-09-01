@@ -56,49 +56,51 @@ export function filterHiddenClients(
     return []
   }
 
-  return targets.flatMap((target: AvailableTarget) => {
-    // Just to please TypeScript
-    if (typeof exclude.value !== 'object') {
-      return []
-    }
+  return targets
+    .flatMap((target: AvailableTarget) => {
+      // Just to please TypeScript
+      if (typeof exclude.value !== 'object') {
+        return []
+      }
 
-    // NOTE: This is for backwards compatibility with the previous behavior,
-    // If exclude is an array, it will exclude the matching clients from all targets.
-    //
-    // Example: ['fetch', 'xhr']
-    if (Array.isArray(exclude.value)) {
-      target.clients = target.clients.filter(
-        // @ts-expect-error Typescript, chill. It’s all good. It has to be an array.
-        (client) => !exclude.value.includes(client.key),
-      )
+      // NOTE: This is for backwards compatibility with the previous behavior,
+      // If exclude is an array, it will exclude the matching clients from all targets.
+      //
+      // Example: ['fetch', 'xhr']
+      if (Array.isArray(exclude.value)) {
+        target.clients = target.clients.filter(
+          // @ts-expect-error Typescript, chill. It’s all good. It has to be an array.
+          (client) => !exclude.value.includes(client.key),
+        )
+
+        return [target]
+      }
+
+      // Determine if the whole target (language) is to be excluded
+      // Example: { node: true }
+      if (exclude.value[target.key] === true) {
+        return []
+      }
+
+      // Filter out excluded clients within the target
+      // Example: { node: ['fetch', 'xhr'] }
+      if (Array.isArray(exclude.value[target.key])) {
+        target.clients = target.clients.filter((client) => {
+          return !(
+            // @ts-expect-error We checked whether it’s an Array already.
+            exclude.value[target.key].includes(client.key)
+          )
+        })
+      }
+
+      // Remove targets that don’t have any clients left
+      if (!target?.clients?.length) {
+        return []
+      }
 
       return [target]
-    }
-
-    // Determine if the whole target (language) is to be excluded
-    // Example: { node: true }
-    if (exclude.value[target.key] === true) {
-      return []
-    }
-
-    // Filter out excluded clients within the target
-    // Example: { node: ['fetch', 'xhr'] }
-    if (Array.isArray(exclude.value[target.key])) {
-      target.clients = target.clients.filter((client) => {
-        return !(
-          // @ts-expect-error We checked whether it’s an Array already.
-          exclude.value[target.key].includes(client.key)
-        )
-      })
-    }
-
-    // Remove targets that don’t have any clients left
-    if (!target?.clients?.length) {
-      return []
-    }
-
-    return [target]
-  })
+    })
+    .filter((target: AvailableTarget) => target.clients.length > 0)
 }
 
 /**
